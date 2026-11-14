@@ -9,18 +9,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          if [ -f holler-cable-firetv.zip ]; then
-            unzip -oq holler-cable-firetv.zip -d unpacked
-            cp -r unpacked/holler-cable-firetv/. .
+      - name: Unpack project
+        run: |
+          ls -la
+          for z in *.zip; do [ -f "$z" ] && unzip -oq "$z" -d unpacked; done
+          if [ -d unpacked ]; then
+            src=$(dirname "$(find unpacked -name settings.gradle | head -1)")
+            cp -r "$src"/. .
           fi
+          ls -la
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "17" }
-      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: "8.7" }
-      - run: gradle :app:assembleRelease
-      - run: cp app/build/outputs/apk/release/app-release.apk holler-cable.apk
+      - name: Build APK
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          gradle :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk holler-cable.apk
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}

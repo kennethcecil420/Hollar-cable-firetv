@@ -1,0 +1,27 @@
+name: Daily TV listings
+on:
+  schedule: [ { cron: "23 8 * * *" } ]   # every morning, ~4 AM Eastern
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  listings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack project
+        run: for z in *.zip; do [ -f "$z" ] && unzip -oq "$z" -d unpacked; done
+      - name: Pull listings from Schedules Direct
+        env:
+          SD_USER: ${{ secrets.SD_USER }}
+          SD_PASS: ${{ secrets.SD_PASS }}
+        run: |
+          dir=$(dirname "$(find unpacked -name settings.gradle | head -1)")
+          python3 "$dir/tools/sd_guide.py" "$dir/app/src/main/assets/index.html" guide.json
+      - name: Save listings
+        run: |
+          git config user.name "holler-bot"; git config user.email "holler-bot@users.noreply.github.com"
+          git add guide.json
+          git diff --cached --quiet || git commit -m "TV listings $(date +%F)"
+          git pull --rebase -q || true
+          git push
